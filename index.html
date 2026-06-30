@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bounce Trap</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="ui">
+    <div id="scoreBox">Score: <span id="score">0</span></div>
+    <div id="highScoreBox">Best: <span id="highScore">0</span></div>
+    <div id="inkBarWrap"><div id="inkBar"></div></div>
+  </div>
+
+  <canvas id="game"></canvas>
+
+  <div id="hint">Move mouse to aim &middot; A/D or scroll to rotate &middot; Click to place line (max 3)</div>
+
+  <div id="gameOverScreen" class="hidden">
+    <h1>Game Over</h1>
+    <p id="finalScore">Score: 0</p>
+    <p id="finalHighScore">Best: 0</p>
+    <button id="restartBtn">Restart</button>
+  </div>
+
+<script src="script.js"></script>
+</body>
+</html>
