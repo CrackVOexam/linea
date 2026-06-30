@@ -133,8 +133,9 @@ const state = {
   inkRegenRate: 14,     // per second
   inkCost: 34,          // cost per line placed
   speedMultiplier: 1,
-  speedGrowth: 0.018,    // multiplier growth per score
-  gravity: 260,          // px/s^2
+speedMultiplier: 0.65,       // Much slower start
+speedGrowth: 0.008,          // Gentle progression
+gravity: 180,                // Easier physics
   shake: 0,
   lines: [],             // active player lines
   particles: [],
@@ -180,7 +181,7 @@ function spawnBall() {
     squashX: 1, squashY: 1   // eased toward 1 each frame; punched on bounce
   };
   const angle = Math.random() * Math.PI * 2;
-  const speed = 220;
+  const speed = 140;
   b.vx = Math.cos(angle) * speed;
   b.vy = Math.sin(angle) * speed;
   balls.push(b);
@@ -216,9 +217,11 @@ function relocateTarget(t) {
    - A/D or Q/E or scroll wheel rotate the placement line
    - Click places a line (max 3 active, oldest replaced)
    ============================================================ */
-const LINE_LENGTH = 90;
-const LINE_LIFETIME = 5000; // ms
-const MAX_LINES = 3;
+// NEW
+const LINE_LENGTH = 120;          // Easier to catch the ball
+const LINE_LIFETIME = 1800;       // Shorter lifetime keeps gameplay active
+const MAX_LINES = 1;              // Only one active line
+const WALL_BOUNCE = 0.98;         // Wall energy retention
 
 const input = {
   mouseX: window.innerWidth / 2,
@@ -226,12 +229,25 @@ const input = {
   angle: 0
 };
 
-window.addEventListener('mousemove', (e) => {
-  input.mouseX = e.clientX;
-  input.mouseY = e.clientY;
+window.addEventListener('mousemove',(e)=>{
+
+    input.mouseX=e.clientX;
+    input.mouseY=e.clientY;
+
+    const ball=balls[0];
+
+    if(ball){
+
+        input.angle=Math.atan2(
+            input.mouseY-ball.y,
+            input.mouseX-ball.x
+        );
+
+    }
+
 });
 
-window.addEventListener('keydown', (e) => {
+, (e) => {
   const step = 0.12; // radians
   if (e.key === 'a' || e.key === 'q') input.angle -= step;
   if (e.key === 'd' || e.key === 'e') input.angle += step;
@@ -248,7 +264,7 @@ canvas.addEventListener('click', () => {
 
 // { passive: false } + preventDefault stops the wheel gesture from also
 // scrolling/zooming the page while the player is rotating their line
-window.addEventListener('wheel', (e) => {
+, (e) => {
   e.preventDefault();
   input.angle += e.deltaY * 0.0025;
 }, { passive: false });
@@ -384,10 +400,33 @@ function updateBalls(dt) {
       if (dist < ball.r + t.r) hits.push(t);
     });
 
-    if (ball.x < -50 || ball.x > canvas.width + 50 ||
-        ball.y < -50 || ball.y > canvas.height + 50) {
-      anyOutOfBounds = true;
-    }
+   // LEFT
+if(ball.x < ball.r){
+    ball.x = ball.r;
+    ball.vx *= -WALL_BOUNCE;
+    Audio_.bounce(0.7);
+}
+
+// RIGHT
+if(ball.x > canvas.width-ball.r){
+    ball.x = canvas.width-ball.r;
+    ball.vx *= -WALL_BOUNCE;
+    Audio_.bounce(0.7);
+}
+
+// TOP
+if(ball.y < ball.r){
+    ball.y = ball.r;
+    ball.vy *= -WALL_BOUNCE;
+    Audio_.bounce(0.7);
+}
+
+// BOTTOM
+if(ball.y > canvas.height-ball.r){
+    ball.y = canvas.height-ball.r;
+    ball.vy *= -WALL_BOUNCE;
+    Audio_.bounce(0.7);
+}
   });
 
   hits.forEach(onTargetHit);
@@ -430,7 +469,10 @@ function updateTargetPersonality(dt) {
 function onTargetHit(t) {
   state.score++;
   scoreEl.textContent = state.score;
-  state.speedMultiplier += state.speedGrowth;
+state.speedMultiplier = Math.min(
+    1.5,
+    state.speedMultiplier + state.speedGrowth
+);
 
   // the "big" feedback stack - this is the moment that should feel addictive
   state.shake = 16;
