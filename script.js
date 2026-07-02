@@ -173,7 +173,7 @@ const state = {
   flash:        0,
   chroma:       0,
   displayScore: 0,
-  newBestFlash: 0,
+  newBestShown: false,   // true once 'new-best' class has been added this run
 
   // progression / milestone
   milestonesUnlocked: new Set(),
@@ -235,9 +235,54 @@ function spawnTarget() {
 }
 
 function relocateTarget(t) {
-  const margin = 80;
-  t.x = margin + Math.random() * (canvas.width  - margin * 2);
-  t.y = margin + Math.random() * (canvas.height - margin * 2);
+  const margin   = 80;
+  const W        = canvas.width;
+  const H        = canvas.height;
+  // Early game: keep targets within reach so the first few hits feel achievable.
+  // After score 8 the full arena is used and the player is already comfortable.
+  const earlyGame = state.score < 8 && balls.length > 0;
+
+  let placed = false;
+  for (let attempt = 0; attempt < 40; attempt++) {
+    let tx, ty;
+
+    if (earlyGame) {
+      // Spawn 90–190 px from the current ball position
+      const ball = balls[0];
+      const ang  = Math.random() * Math.PI * 2;
+      const dist = 90 + Math.random() * 100;
+      tx = ball.x + Math.cos(ang) * dist;
+      ty = ball.y + Math.sin(ang) * dist;
+    } else {
+      tx = margin + Math.random() * (W - margin * 2);
+      ty = margin + Math.random() * (H - margin * 2);
+    }
+
+    // Must stay inside the arena
+    if (tx < margin || tx > W - margin || ty < margin || ty > H - margin) continue;
+
+    // Must not land on top of any ball (minimum 40 px clear gap)
+    let overlap = false;
+    for (let i = 0; i < balls.length; i++) {
+      if (Math.hypot(tx - balls[i].x, ty - balls[i].y) < balls[i].r + t.r + 40) {
+        overlap = true;
+        break;
+      }
+    }
+    if (overlap) continue;
+
+    t.x     = tx;
+    t.y     = ty;
+    placed  = true;
+    break;
+  }
+
+  // Fallback: pure random placement (should rarely be needed)
+  if (!placed) {
+    t.x = margin + Math.random() * (W - margin * 2);
+    t.y = margin + Math.random() * (H - margin * 2);
+  }
+
   const angle = Math.random() * Math.PI * 2;
   const spd   = (40 + Math.random() * 30) * state.targetSpeedBoost;
   t.vx = Math.cos(angle) * spd;
@@ -599,10 +644,10 @@ function updateScoreUI(dt) {
 
   if (state.score > state.highScore) {
     highScoreEl.textContent = state.score;
-    if (state.newBestFlash <= 0) {
+    if (!state.newBestShown) {
       document.getElementById('highScoreBox').classList.add('new-best');
+      state.newBestShown = true;
     }
-    state.newBestFlash = 1;
   }
 }
 
@@ -626,8 +671,8 @@ const MILESTONES = [
   },
   {
     score: 30,
-    label: 'DOUBLE TROUBLE',
-    apply: function() { spawnTarget(); }
+    label: 'INK OVERFLOW',
+    apply: function() { state.inkRegenRate = Math.min(state.inkRegenRate + 8, 32); }
   },
   {
     score: 40,
@@ -1197,7 +1242,7 @@ function startGame() {
 
   scoreEl.textContent  = 0;
   state.displayScore   = 0;
-  state.newBestFlash   = 0;
+  state.newBestShown   = false;
   document.getElementById('highScoreBox').classList.remove('new-best');
   highScoreEl.textContent = state.highScore;
   gameOverScreen.classList.add('hidden');
